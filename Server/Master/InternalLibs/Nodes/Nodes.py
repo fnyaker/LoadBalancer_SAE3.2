@@ -1,15 +1,20 @@
 import time
 from threading import Thread
+from Server.Master.InternalLibs.Server import Server
+import uuid
 
 
 import json
 # import ssl
 
+def gen_uid():
+    return str(uuid.uuid4())
 
-class Node: # node class for the control connection
-    def __init__(self, uid, clientobject):
+class Node:
+    def __init__(self, uid, clientobject, pipe):
         self.__uid = uid
         self.__clientObject = clientobject
+        self.__pipe = pipe
         self.running = True
 
     def __send(self, data):
@@ -38,7 +43,7 @@ class Node: # node class for the control connection
         time.sleep(0.01)
 
     def __handleClientMessage(self, message):
-        print("Got message from node:", message)
+        # print("Got message from node:", message)
         obj = json.loads(message)
         if obj['command'] == 'greet':
             self.__sendUid()
@@ -50,14 +55,17 @@ class Node: # node class for the control connection
 
     def __sendUid(self):
         self.__send(json.dumps({"command": "uidIs", "uid": self.__uid}).encode('utf-8'))
+        self.__pipe.send(f"Node {self.__uid} sent greetings !")
 
     def __pong(self):
         self.__send(json.dumps({"command": "pong"}).encode('utf-8'))
+        self.__pipe.send(f"Node {self.__uid} sent ping")
 
     def __eject(self):
         self.__send(json.dumps({"command": "OUT", "data": "Goodbye"}).encode('utf-8'))
         self.running = False
-        print(f"Node {self.uid} ejected")
+        self.__pipe.send(f"Node {self.__uid} ejected")
+        # print(f"Node {self.uid} ejected")
 
     def __messages(self):
         data = self.__get_last_message()
@@ -92,3 +100,22 @@ class NodesBook: # stores all nodes and allows them to interact with outside
 
     def getNodes(self):
         return self.__nodes
+
+class NodeControlServer(Server):
+    def __init__(self, listener_port, listener_ip, certfile, keyfile, pipe):
+        self.__listener_port = listener_port
+        self.__listener_ip = listener_ip
+        super().__init__(listener_port, listener_ip, self.__callback, use_ssl=True, certfile=certfile, keyfile=keyfile)
+        self.nodesBook = NodesBook()
+        self.__pipe = pipe
+
+    def start(self):
+        print("Node control server starting on", self.__listener_ip, ":", self.__listener_port)
+        super().start()
+
+    def __callback(self, ssl_client):
+        print("New node connected")
+        node_uid = gen_uid()
+        node = Node(node_uid, ssl_client, self.__pipe)
+        self.nodesBook.addNode(node)
+        self.__pipe.send(f"New node connected: {node_uid}")

@@ -83,11 +83,22 @@ class ControlClient(Client): # this is the client for the control connection, it
                 print(f"Got pong from server in {self.pingtime} seconds")
             except TypeError:
                 pass
+        elif obj['command'] == 'nodeIs':
+            print("Got node, i'm happy")
+            # the client is happy to have a node
+            # he will now connect a data client to the Master server (proxy) for fast data transfer
 
+
+    def initDataClient(self, serverAddress, serverPort, encryptionKey = None):
+        self.__dataClient = DataClient(serverAddress, serverPort, encryptionKey)
+        self.__dataClient.startListener()
 
     def requestUid(self):
         print("Requesting uid from server")
         self.__send(json.dumps({"command": "greet", "data": "Hello"}))
+
+    def requestNode(self):
+        self.__send(json.dumps({"command": "requestNode"}))
 
     def sayBye(self):
         self.__send(json.dumps({"command": "bye", "data": str(self.__uid)}))
@@ -103,7 +114,66 @@ class ControlClient(Client): # this is the client for the control connection, it
 
 
 class DataClient(Client): # this is the client for the node connection, it must not use ssl as the data will be encrypted on the application layer
-    def __init__(self, serverAddress = "localhost", serverPort = 12345):
-        super().__init__(serverAddress, serverPort, False)
+    def __init__(self, serverAddress = "localhost", serverPort = 12345, encryptionKey = None):
+        super().__init__(serverAddress, serverPort, False) # no full ssl because master will serve as proxy and we d'ont want to overload it the data will be encrypted on the application layer
+        self.__encryptionKey = encryptionKey
+        self.running = True
+        self.pingtime = None
+        self.__uid = None
+
+    def __listener(self):
+        while self.running:
+            try :
+                data = self.__receive(2048)
+            except :
+                continue
+            if data:
+                self.__handleMessages(data.decode('utf-8'))
+            else:
+                pass
+
+
+    def startListener(self):
+        self.__listenerThread = Thread(target=self.__listener)
+        self.__listenerThread.start()
+
+    def __handleMessages(self, data : str):
+        print("Got message from server")
+        obj = json.loads(data)
+        if obj['command'] == 'OUT':
+            self.running = False
+        elif obj['command'] == 'pong':
+            try :
+                self.pingtime = time.time() - self.pingtime
+                print(f"Got pong from server in {self.pingtime} seconds")
+            except TypeError:
+                pass
+        elif obj['command'] == 'uidIs':
+            self.__uid = obj['uid']
+            print(f"Got uid from server: {self.__uid}")
+
+    def requestUid(self):
+        print("Requesting uid from server")
+        self.__send(json.dumps({"command": "greet", "data": "Hello"}))
+
+    def __send(self, data : bytes):
+        if self.__encryptionKey:
+            # encrypt data
+            pass
+        super().send(data)
+
+    def __receive(self, size : 2048):
+        data = super().receive(size)
+        if self.__encryptionKey:
+            # decrypt data
+            pass
+        return data
+
+    def sayBye(self):
+        self.__send(json.dumps({"command": "bye", "data": str(self.__uid)}).encode('utf-8'))
+
+    def ping(self):
+        self.pingtime = time.time()
+        self.__send(json.dumps({"command": "ping"}).encode('utf-8'))
 
 

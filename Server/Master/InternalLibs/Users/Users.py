@@ -1,17 +1,21 @@
 import time
 from threading import Thread
+from Server.Master.InternalLibs.Server import Server
 
+import uuid
 
 import json
 # import ssl
 
+def gen_uid():
+    return str(uuid.uuid4())
 
-class User: # user class for the control connection
-    def __init__(self, uid, clientobject):
+class User:
+    def __init__(self, uid, clientobject, pipe):
         self.__uid = uid
         self.__clientObject = clientobject
+        self.__pipe = pipe
         self.running = True
-        # self.__handlerThread = Thread(target=self.handle)
 
     def __send(self, data):
         self.__clientObject.send(data)
@@ -24,14 +28,12 @@ class User: # user class for the control connection
             while self.running:
                 self.__loop()
                 time.sleep(0.001)
-                # print("User management loop")
         except KeyboardInterrupt:
             self.close()
 
     def __loop(self):
         try:
             msg = self.__messages()
-            # time.sleep(0.01)
             if msg:
                 self.__handleClientMessage(msg)
             else:
@@ -41,7 +43,7 @@ class User: # user class for the control connection
         time.sleep(0.01)
 
     def __handleClientMessage(self, message):
-        print("Got message from user :", message)
+        # print("Got message from user:", message)
         obj = json.loads(message)
         if obj['command'] == 'greet':
             self.__sendUid()
@@ -53,19 +55,20 @@ class User: # user class for the control connection
 
     def __sendUid(self):
         self.__send(json.dumps({"command": "uidIs", "uid": self.__uid}).encode('utf-8'))
+        self.__pipe.send(f"User {self.__uid} sent greetings !")
 
     def __pong(self):
         self.__send(json.dumps({"command": "pong"}).encode('utf-8'))
+        self.__pipe.send(f"User {self.__uid} sent ping")
 
     def __eject(self):
         self.__send(json.dumps({"command": "OUT", "data": "Goodbye"}).encode('utf-8'))
         self.running = False
-        print(f"User {self.uid} ejected")
+        self.__pipe.send(f"User {self.__uid} ejected")
+        # print(f"User {self.uid} ejected")
 
     def __messages(self):
-        # if there are messages, return the first one and remove it from the list
         data = self.__get_last_message()
-        # print(data)
         if data:
             return data
         else:
@@ -99,3 +102,22 @@ class UserBook: # stores all users and allow them to interact with outside
 
     def getUsers(self):
         return self.__users
+
+class UserControlServer(Server):
+    def __init__(self, listener_port, listener_ip, certfile, keyfile, pipe):
+        self.__listener_port = listener_port
+        self.__listener_ip = listener_ip
+        super().__init__(listener_port, listener_ip, self.__callback, use_ssl=True, certfile=certfile, keyfile=keyfile)
+        self.__userBook = UserBook()
+        self.__pipe = pipe
+
+    def start(self):
+        # print("User control server starting on", self.__listener_ip, ":", self.__listener_port)
+        super().start()
+
+    def __callback(self, ClientObject):
+        client_uid = gen_uid()
+        client = User(client_uid, ClientObject, self.__pipe)
+        # print("New user connected with uid", client_uid)
+        self.__userBook.addUser(client)
+        self.__pipe.send(f"New user connected: {client_uid}")

@@ -1,4 +1,5 @@
 import ssl
+import time
 from threading import Thread
 from socket import socket, AF_INET, SOCK_STREAM
 
@@ -30,15 +31,16 @@ class Client: # this class will be the object passed to the callback function
             try :
                 data = self.__client.recv(size)
             except :
-                print("SSLWantReadError Caught")
+                # print("SSLWantReadError Caught")
                 self.__client.setblocking(True)
-                print("Blocking")
+                # print("Blocking")
+                time.sleep(0.1)
                 try: # not very clean but it works :)
                     data = self.__client.recv(size)
                 except : # it okay, d'ont worry, everyone can fail its human
-                    print("Still Blocking")
+                    # print("Still Blocking")
                     data = None
-                print("Unblocking")
+                # print("Unblocking")
                 self.__client.setblocking(False)
         else:
             data = self.__client.recv(size)
