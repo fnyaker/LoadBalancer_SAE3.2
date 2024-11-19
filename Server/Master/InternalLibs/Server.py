@@ -17,19 +17,29 @@ class Client: # this class will be the object passed to the callback function
 
     def send(self, data):
         if self.__use_ssl:
+            self.__client.setblocking(True)
+            #print("Blocking to Send")
             self.__client.write(data)
+            #print("Unblocking")
+            self.__client.setblocking(False)
         else:
             self.__client.send(data)
 
-    def get_last_message(self):
-        try:
-            if self.__use_ssl:
-                data = self.__client.read()
-            else:
-                data = self.__client.recv(1024)
-            return data if data else None
-        except:
-            return None
+    def get_last_message(self, size=2048):
+        if self.__use_ssl:
+            try :
+                data = self.__client.recv(size)
+            except ssl.SSLWantReadError:
+                #print("SSLWantReadError")
+                self.__client.setblocking(True)
+                #print("Blocking")
+                data = self.__client.recv(size)
+                #print("Unblocking")
+                self.__client.setblocking(False)
+        else:
+            data = self.__client.recv(size)
+        return data if data else None
+
 
     def close(self):
         self.__client.close()
@@ -61,9 +71,10 @@ class Server:
     def __listen(self):
         while self.__running:
             client, addr = self.__listener.accept()
+            client.setblocking(False)
             if self.__use_ssl:
                 # Wrap the client socket with SSL
-                client = self.__ssl_context.wrap_socket(client, server_side=True)
+                client = self.__ssl_context.wrap_socket(client, server_side=True, do_handshake_on_connect=False)
                 clientObject = Client(addr, ssl_client=client)
             else:
                 clientObject = Client(addr, client=client)

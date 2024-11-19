@@ -1,8 +1,7 @@
-import ssl
-from Master.InternalLibs.Users import UserControlServer
+from Server.Master.InternalLibs.Users.Users import UserControlServer
 
 def main():
-    server_ip = '127.0.0.1'
+    server_ip = 'localhost'
     server_port = 12345
     certfile = '../certfile.pem'
     keyfile = '../keyfile.pem'
