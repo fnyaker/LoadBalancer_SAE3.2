@@ -17,6 +17,8 @@ class Client:
 
         if self.__useSSL:
             self.__context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=self.__certfile)
+            self.__context.check_hostname = False
+            self.__context.verify_mode = ssl.CERT_NONE
             self.__sock = self.__context.wrap_socket(socket.create_connection((self.__serverAddress, self.__serverPort)), server_hostname=self.__serverAddress)
         else:
             self.__sock = socket.create_connection((self.__serverAddress, self.__serverPort))

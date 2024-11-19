@@ -29,12 +29,16 @@ class Client: # this class will be the object passed to the callback function
         if self.__use_ssl:
             try :
                 data = self.__client.recv(size)
-            except ssl.SSLWantReadError:
-                #print("SSLWantReadError")
+            except :
+                print("SSLWantReadError Caught")
                 self.__client.setblocking(True)
-                #print("Blocking")
-                data = self.__client.recv(size)
-                #print("Unblocking")
+                print("Blocking")
+                try: # not very clean but it works :)
+                    data = self.__client.recv(size)
+                except : # it okay, d'ont worry, everyone can fail its human
+                    print("Still Blocking")
+                    data = None
+                print("Unblocking")
                 self.__client.setblocking(False)
         else:
             data = self.__client.recv(size)
@@ -65,6 +69,9 @@ class Server:
 
         if self.__use_ssl:
             # Create SSL context
+            print("Using SSL")
+            print(certfile)
+            print(keyfile)
             self.__ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
             self.__ssl_context.load_cert_chain(certfile=certfile, keyfile=keyfile)
 
@@ -88,6 +95,8 @@ class Server:
 
     def stop(self):
         self.__running = False
+        self.__listener.setblocking(False)
         self.__listener.close()
+        print("Server stopping")
         self.__listener_thread.join()
 

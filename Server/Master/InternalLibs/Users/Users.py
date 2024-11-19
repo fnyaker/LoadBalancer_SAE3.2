@@ -46,13 +46,13 @@ class User: # user class for the control connection
         if obj['command'] == 'greet':
             self.__sendUid()
         elif obj['command'] == 'bye':
-            if obj['data'] == self.uid:
+            if obj['data'] == self.__uid:
                 self.__eject()
         elif obj['command'] == 'ping':
             self.__pong()
 
     def __sendUid(self):
-        self.__send(json.dumps({"command": "uidIs", "uid": self.uid}).encode('utf-8'))
+        self.__send(json.dumps({"command": "uidIs", "uid": self.__uid}).encode('utf-8'))
 
     def __pong(self):
         self.__send(json.dumps({"command": "pong"}).encode('utf-8'))
@@ -85,7 +85,7 @@ class UserBook: # stores all users and allow them to interact with outside
         self.running = True
 
     def addUser(self, user):
-        # self.__users[user.uid] = user
+
         # we create a new thread for that user to listen for messages and respond
         userthread = Thread(target=user.main)
         self.__users[user.uid] = [user,userthread]
