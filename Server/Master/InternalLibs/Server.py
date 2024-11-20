@@ -80,8 +80,8 @@ class Server:
     def __listen(self):
         while self.__running:
             client, addr = self.__listener.accept()
-            client.setblocking(False)
             if self.__use_ssl:
+                client.setblocking(False)
                 # Wrap the client socket with SSL
                 client = self.__ssl_context.wrap_socket(client, server_side=True, do_handshake_on_connect=False)
                 clientObject = Client(addr, ssl_client=client)

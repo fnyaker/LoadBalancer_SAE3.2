@@ -24,10 +24,13 @@ class ServerManager:
         self.node_certfile = '../../certfile.pem'
         self.node_keyfile = '../../keyfile.pem'
 
-        self.user_pipe, self.node_pipe = Pipe()
+        self.dataServer_user_ip = 'localhost'
+        self.dataServer_user_port = 22345
+
+        self.user_pipe, self.node_pipe, self.dataserv_pipe = Pipe()
 
     def start_user_control(self):
-        usercontrolserver = UserControlServer(self.user_server_port, self.user_server_ip, self.user_certfile, self.user_keyfile, self.user_pipe)
+        usercontrolserver = UserControlServer(self.user_server_port, self.user_server_ip, self.user_certfile, self.user_keyfile, self.user_pipe, self.dataServer_ip, self.dataServer_port)
         usercontrolserver.start()
 
     def start_node_control(self):
@@ -35,9 +38,13 @@ class ServerManager:
         nodecontrolserver.start()
 
     def start_data_server(self):
-        pass
+        dataserver = DataServer(self.dataServer_ip, self.dataServer_port, self.user_pipe)
+        dataserver.start()
 
     def __handle_messages(self,msg):
+        pass
+
+    def start_load_balancer(self):
         pass
 
     def main(self):
@@ -60,6 +67,9 @@ class ServerManager:
                 if self.node_pipe.poll():
                     message = self.node_pipe.recv()
                     print(f"Message from NodeControlServer: {message}")
+                if self.dataserv_pipe.poll():
+                    message = self.dataserv_pipe.recv()
+                    print(f"Message from DataServer: {message}")
                 sleep(0.01)
         except KeyboardInterrupt:
             usercontrolthread.terminate()
