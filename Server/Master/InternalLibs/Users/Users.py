@@ -67,20 +67,18 @@ class User:
         elif obj['command'] == 'ping':
             self.__pong()
         elif obj['command'] == 'initDataSession':
-            self.__start_data_session()
+            self.__start_data_session(obj["RequiredPackages"])
 
     def __sendUid(self):
         self.__send(json.dumps({"command": "uidIs", "uid": self.__uid}).encode('utf-8'))
-        self.__pipe.send(f"User {self.__uid} sent greetings !")
 
     def __pong(self):
         self.__send(json.dumps({"command": "pong"}).encode('utf-8'))
-        self.__pipe.send(f"User {self.__uid} sent ping")
 
     def __eject(self):
         self.__send(json.dumps({"command": "OUT", "data": "Goodbye"}).encode('utf-8'))
         self.running = False
-        self.__pipe.send(f"User {self.__uid} ejected")
+        self.__pipe.send_to_server(json.dumps({"Status": "UserEjected", "uid": self.__uid}))
         # print(f"User {self.uid} ejected")
 
     def __messages(self):
@@ -90,11 +88,14 @@ class User:
         else:
             return None
 
-    def __start_data_session(self):
-        self.__send(json.dumps({"command": "initDataSession", "data": self.__data_session}).encode('utf-8'))
+    def __start_data_session(self, RequiredPackages):
+        self.__pipe.send_to_server(json.dumps({"DataSessionRequest": RequiredPackages, "uid": self.__uid, "Key": self.__data_session[1]}))
+        self.__send(json.dumps({"command": "DataSession", "data": {
+            "ip": self.__data_session[0][0],
+            "port": self.__data_session[0][1],
+            "key": self.__data_session[1]
+        }}).encode('utf-8'))
 
-
-        self.__send(json.dumps({}))
 
     def close(self):
         self.__clientObject.close()
@@ -144,8 +145,9 @@ class UserControlServer(Server):
         client = User(client_uid, ClientObject, self.__pipe, data_session)
         # print("New user connected with uid", client_uid)
         self.__userBook.addUser(client)
-        self.__pipe.send(f"NewUser'{client_uid}',Key'{data_session[1]}'")
+        # print(f"New user connected with uid {client_uid} [printed]")
 
     def __prepare_data_session(self):
         key = generate_encryption_key()
         return self.__dataServer, key
+

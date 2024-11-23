@@ -9,15 +9,12 @@ def main():
     backend.requestUid()
     time.sleep(0.5)
     print(f"UID: {backend.uid}")
+    print("Requesting a node with python installed")
+    backend.requestNode("python")
 
-    while True:
-        try :
-            backend.ping()
-            time.sleep(1)
-        except KeyboardInterrupt:
-            break
+    time.sleep(0.5)
 
-    backend.sayBye()
+    #backend.sayBye()
 
 if __name__ == "__main__":
     main()

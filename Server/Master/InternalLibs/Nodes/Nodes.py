@@ -118,4 +118,4 @@ class NodeControlServer(Server):
         node_uid = gen_uid()
         node = Node(node_uid, ssl_client, self.__pipe)
         self.nodesBook.addNode(node)
-        self.__pipe.send(f"New node connected: {node_uid}")
+        self.__pipe.send(f"NewNode:{node_uid}")

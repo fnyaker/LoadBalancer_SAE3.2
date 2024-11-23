@@ -3,6 +3,8 @@ import time
 from threading import Thread
 from socket import socket, AF_INET, SOCK_STREAM
 
+
+
 class Client: # this class will be the object passed to the callback function
     def __init__(self, addr, client=None, ssl_client=None):
         self.__addr = addr

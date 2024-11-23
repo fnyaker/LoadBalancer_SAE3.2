@@ -3,6 +3,7 @@ import ssl
 import json
 from threading import Thread
 import time
+from cryptography.fernet import Fernet
 
 class Client:
     def __init__(self, serverAddress = "localhost", serverPort = 12345, useSSL = False, certfile = None):
@@ -71,7 +72,7 @@ class ControlClient(Client): # this is the client for the control connection, it
         self.__listenerThread.start()
 
     def __handleMessages(self, data : str):
-        print("Got message from server")
+        print(data)
         obj = json.loads(data)
         if obj['command'] == 'uidIs':
             self.__uid = obj['uid']
@@ -83,22 +84,27 @@ class ControlClient(Client): # this is the client for the control connection, it
                 print(f"Got pong from server in {self.pingtime} seconds")
             except TypeError:
                 pass
-        elif obj['command'] == 'nodeIs':
+        elif obj['command'] == 'DataSession':
             print("Got node, i'm happy")
+            print(obj['data'])
             # the client is happy to have a node
             # he will now connect a data client to the Master server (proxy) for fast data transfer
+            self.initDataClient(obj['data']['ip'], obj['data']['port'], obj['data']['key'], self.__uid)
 
 
-    def initDataClient(self, serverAddress, serverPort, encryptionKey = None):
-        self.__dataClient = DataClient(serverAddress, serverPort, encryptionKey)
-        self.__dataClient.startListener()
+
+    def initDataClient(self, serverAddress, serverPort, encryptionKey = None, uid = None):
+        self.__dataClient = DataClient(serverAddress, serverPort, encryptionKey, uid = uid)
+        self.__dataClient.authenticate()
+        self.__dataClient.startMsgListener()
+
 
     def requestUid(self):
         print("Requesting uid from server")
         self.__send(json.dumps({"command": "greet", "data": "Hello"}))
 
-    def requestNode(self):
-        self.__send(json.dumps({"command": "requestNode"}))
+    def requestNode(self, RequiredPackages):
+        self.__send(json.dumps({"command": "initDataSession", "RequiredPackages": RequiredPackages}))
 
     def sayBye(self):
         self.__send(json.dumps({"command": "bye", "data": str(self.__uid)}))
@@ -114,12 +120,15 @@ class ControlClient(Client): # this is the client for the control connection, it
 
 
 class DataClient(Client): # this is the client for the node connection, it must not use ssl as the data will be encrypted on the application layer
-    def __init__(self, serverAddress = "localhost", serverPort = 12345, encryptionKey = None):
+    def __init__(self, serverAddress = "localhost", serverPort = 22345, encryptionKey : str = None, payload = None, uid = None):
         super().__init__(serverAddress, serverPort, False) # no full ssl because master will serve as proxy and we d'ont want to overload it the data will be encrypted on the application layer
         self.__encryptionKey = encryptionKey
+        self.__cypher = Fernet(encryptionKey.encode('utf-8'))
         self.running = True
         self.pingtime = None
-        self.__uid = None
+        self.__uid = uid
+        self.__payload = None
+        self.__auth_passed = False
 
     def __listener(self):
         while self.running:
@@ -128,38 +137,69 @@ class DataClient(Client): # this is the client for the node connection, it must 
             except :
                 continue
             if data:
-                self.__handleMessages(data.decode('utf-8'))
+                self.__handleMessages(self.__decrypt(data).decode('utf-8'))
             else:
                 pass
 
 
-    def startListener(self):
+    def startMsgListener(self):
         self.__listenerThread = Thread(target=self.__listener)
         self.__listenerThread.start()
+        print("DataClient started")
+
+    def authenticate(self):
+        print("Authenticating")
+        self.__send(self.__uid.encode('utf-8'))
+
+
 
     def __handleMessages(self, data : str):
-        print("Got message from server")
+        print(data)
         obj = json.loads(data)
-        if obj['command'] == 'OUT':
-            self.running = False
-        elif obj['command'] == 'pong':
+        if obj['command'] == 'Ready':
+            self.sendPayload()
+        elif obj['command'] == 'PONG':
             try :
                 self.pingtime = time.time() - self.pingtime
                 print(f"Got pong from server in {self.pingtime} seconds")
             except TypeError:
                 pass
-        elif obj['command'] == 'uidIs':
-            self.__uid = obj['uid']
-            print(f"Got uid from server: {self.__uid}")
+        elif obj['command'] == 'Status':
+            self.updateStatus(obj['data'])
+        elif obj['command'] == 'STDOUT':
+            self.STDOUT(obj['data'])
+        elif obj['command'] == 'STDERR':
+            self.STDERR(obj['data'])
+        elif obj['command'] == 'OUT':
+            self.running = False
+        elif obj['command'] == 'Auth_pass':
+            print("Authenticated, woaw")
+            self.__auth_passed = True
 
-    def requestUid(self):
-        print("Requesting uid from server")
-        self.__send(json.dumps({"command": "greet", "data": "Hello"}))
+
+    def updateStatus(self, status : str):
+        print(status)
+
+    def STDOUT(self, data : str):
+        print(data)
+
+    def STDERR(self, data : str):
+        print(data)
+
+    def sendPayload(self, data : bytes):
+        self.__send(self.__payload)
+
+    def __encrypt(self, data : bytes):
+        return self.__cypher.encrypt(data)
+
+    def __decrypt(self, data : bytes):
+        return self.__cypher.decrypt(data)
+
 
     def __send(self, data : bytes):
         if self.__encryptionKey:
             # encrypt data
-            pass
+            data = self.__encrypt(data)
         super().send(data)
 
     def __receive(self, size : 2048):
@@ -175,5 +215,8 @@ class DataClient(Client): # this is the client for the node connection, it must 
     def ping(self):
         self.pingtime = time.time()
         self.__send(json.dumps({"command": "ping"}).encode('utf-8'))
+
+
+
 
 

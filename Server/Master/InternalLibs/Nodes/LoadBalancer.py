@@ -1,6 +1,7 @@
 class Balancer:
-    def __init__(self):
+    def __init__(self, pipe):
         self.nodes = []
+        self.__pipe = pipe
 
     def add_node(self, node):
         self.nodes.append(node)
