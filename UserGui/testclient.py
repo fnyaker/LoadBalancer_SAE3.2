@@ -2,6 +2,9 @@ from LocalLibs import Backend
 from LocalLibs.Backend import ControlClient
 import time
 
+examplecode = """
+print("Hello World")
+"""
 
 def main():
     # Create a new Backend object
@@ -10,7 +13,7 @@ def main():
     time.sleep(0.5)
     print(f"UID: {backend.uid}")
     print("Requesting a node with python installed")
-    backend.requestNode("python")
+    backend.runCode(examplecode)
 
     time.sleep(0.5)
 

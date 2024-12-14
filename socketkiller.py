@@ -1,4 +1,8 @@
+import sys
 import os
+
+# Ajouter le répertoire parent au sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 def force_free_socket(port):
     # Trouver les connexions utilisant le port
@@ -7,6 +11,7 @@ def force_free_socket(port):
     pids = [line.split()[4].split(':')[0] for line in result.splitlines()]
     # Tuer les connexions
     for pid in pids:
+        print(f"Killing process {pid}")
         os.system(f"kill -9 {pid}")
 
 # Exemple d'utilisation
