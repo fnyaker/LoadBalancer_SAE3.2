@@ -48,6 +48,10 @@ class Client: # this class will be the object passed to the callback function
             data = self.__client.recv(size)
         return data if data else None
 
+    def fast_get_last_message(self, size=4096):
+        data = self.__client.recv(size)
+        return data if data else None
+
 
     def close(self):
         self.__client.close()

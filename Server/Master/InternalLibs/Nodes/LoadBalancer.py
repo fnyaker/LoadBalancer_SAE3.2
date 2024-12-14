@@ -1,15 +1,38 @@
+import sys
+import os
+
+# Ajouter le répertoire parent au sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 class Balancer:
-    def __init__(self, pipe):
-        self.nodes = []
-        self.__pipe = pipe
+    def __init__(self):
+        self.nodes = {}
 
     def add_node(self, node):
-        self.nodes.append(node)
+        self.nodes[node.uid] = node
 
     def remove_node(self, node):
-        self.nodes.remove(node)
+        del self.nodes[node.uid]
 
-    def best_node(self):
-        """Returns the node uid with the lower load"""
-        pass
+    def sortnodes(self): # return a list of nodes uid sorted by load
+        list = []
+        for node in self.nodes:
+            list.append(node)
+        # we sort them with their cpu and ram load : {"cpu": cpu, "mem": mem}
+        list.sort(key=lambda x: self.nodes[x][0].load["cpu"] + self.nodes[x][0].load["mem"]*2)
+
+
+        return list
+
+
+    def choose_node(self, required_packages):
+        nodes = self.sortnodes()
+
+        # if the first and second have a very close load, we choose a random one
+
+        for node in nodes:
+            if self.nodes[node][0].has_packages(required_packages):
+                return self.nodes[node][0]
+        return nodes[0] # TO BE CHANGED
+
 

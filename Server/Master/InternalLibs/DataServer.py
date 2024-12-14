@@ -1,27 +1,91 @@
+import sys
+import os
+
+# Ajouter le répertoire parent au sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 import time
 import json
 from threading import Thread
 from Server.Master.InternalLibs.Server import Server
 from cryptography.fernet import Fernet
+from multiprocessing import Process
 
 class Session :
     """This class correspond to a user that
      is connected to the data server for
      compiling and running code in the cloud.
       The user stays the same but the node can change"""
-    def __init__(self, UserObject):
+    def __init__(self, UserObject, useruid = None):
         self.__clientObject = UserObject
+        self.__user_uid =  useruid
         self.__node = None
+        self.__relayProcess = None
+
+
+    def startRelay(self):
+        self.__relayProcess = Process(target=self.__main)
+        self.__relayProcess.start()
+
+    def stopRelay(self):
+        self.__relayProcess.terminate()
+        self.__relayProcess = None
+
+    def restartRelay(self):
+        if self.__relayProcess is not None:
+            self.stopRelay()
+        self.startRelay()
+
+    def __main(self):
+        usernodeThread = Thread(target=self.__relay_usernode)
+        nodetouserThread = Thread(target=self.__relay_nodetouser)
+        usernodeThread.start()
+        nodetouserThread.start()
+        usernodeThread.join()
+        nodetouserThread.join()
+
+        print("Relay process ended (should never happen)")
 
     def useNode(self, node):
+        print("Node used")
         self.__node = node
+        self.restartRelay()
+        # self.__node.send(json.dumps({"command": "GOGOGO"}).encode('utf-8'))
 
 
-    def relay(self):
-        data = self.__clientObject.get_last_message()
-        if data:
-            if self.__node:
-                self.__node.send(data)
+    def __relay_usernode(self): # should never be called outside of the dedicated relay process
+        while True:
+            data = self.__clientObject.fast_get_last_message()
+            if data:
+                #print("USER -> NODE")
+                try :
+                    self.__node.send(data)
+                except BrokenPipeError:
+                    print("Node disconnected")
+                    break
+                except ConnectionResetError:
+                    print("Node disconnected")
+                    break
+
+    def __relay_nodetouser(self): # should never be called outside of the dedicated relay process
+        while True:
+            data = self.__node.fast_get_last_message()
+            if data:
+                #print("NODE -> USER")
+                try :
+                    self.__clientObject.send(data)
+                except BrokenPipeError:
+                    print("User disconnected")
+                    break
+                except ConnectionResetError:
+                    print("User disconnected")
+                    break
+
+
+    @property
+    def client_uid(self):
+        return self.__user_uid
+
 
 
 
@@ -63,7 +127,7 @@ class Listener(Server): # this class listens
         if auth_pass:
             print("Client authorised")
 
-            self.__callback(clientObject)
+            self.__callback(clientObject, decrypted)
         else:
             print("Client denied")
             clientObject.close()
@@ -76,6 +140,12 @@ class Listener(Server): # this class listens
         print("Adding authorised client")
         self.__authorised_client.append((uid, key))
 
+    def rm_authorised_client(self, uid):
+        for i in self.__authorised_client:
+            if i[0] == uid:
+                self.__authorised_client.remove(i)
+                break
+
 
     def __decrypt(self, data, key:str):
         cypher = Fernet(key.encode('utf-8'))
@@ -87,7 +157,6 @@ class Listener(Server): # this class listens
         return cypher.encrypt(data.encode('utf-8'))
 
 class DataServer:
-    """The base class for other server classes"""
 
     def __init__(self, userlisten_ip, userlisten_port, node_listen_ip, node_listen_port, pipe):
         self.__userListener = Listener(userlisten_ip, userlisten_port, self.__new_user)
@@ -110,11 +179,45 @@ class DataServer:
         print("Data server started")
 
 
-    def __new_user(self, clientObject):
-        self.__sessions.append(Session(clientObject))
+    def __new_user(self, clientObject, uid):
+        self.__sessions.append(Session(clientObject, uid))
+        print("New user connected with uid", uid)
+        self.rescan_nodes()
 
-    def __new_node(self, clientObject):
-        pass
+    def __rm_user(self, uid):
+        for i in self.__sessions:
+            if i.client_uid == uid:
+                i.stopRelay()
+                self.__sessions.remove(i)
+                self.__userListener.rm_authorised_client(uid)
+                self.__nodeListener.rm_authorised_client(uid)
+                break
+
+
+    def rescan_nodes(self): # we redo the same thing as new node but for all wainting nodes
+        for i in self.__nodes:
+            self.__new_node(i[0], i[1], i[2])
+            del i
+
+    def __new_node(self, clientObject, uid, tries = 0):
+        # we check if a session started by the user with the uid that is in the message is waiting
+        for i in self.__sessions:
+            if i.client_uid == uid:
+                i.useNode(clientObject)
+                break
+        else:
+            # print("Node not used")
+            # we add the node to the waiting list
+            if tries < 500:
+                self.__nodes.append((clientObject, uid, tries + 1))
+                time.sleep(0.02)
+
+            else:
+                print("Node unbale to connect or user id too slow")
+                clientObject.close()
+
+
+
 
     def __main(self):
         while self.__running:
@@ -122,9 +225,11 @@ class DataServer:
             time.sleep(0.01)
 
     def __checkformsg(self):
+        # print("Checking for messages")
         if self.__pipe.poll_from_server():
             msg = self.__pipe.recv_from_server()
             if msg:
+                print("DataServer got", msg)
                 self.__handle_messages(msg)
 
 
@@ -133,3 +238,13 @@ class DataServer:
         if "command" in obj:
             if obj["command"] == "DataSessionRequest":
                 self.__userListener.add_authorised_client(obj["uid"], obj["Key"])
+                self.__nodeListener.add_authorised_client(obj["uid"], obj["Key"])
+
+            elif obj["command"] == "PayloadExecuted":
+                print("Payload executed and relay stopping")
+                for i in self.__sessions:
+                    print(i.client_uid, obj["uid"])
+                    if i.client_uid == obj["uid"]:
+                        print("Stopping relay for user", obj["uid"])
+                        self.__rm_user(obj["uid"])
+                        self.__userListener.rm_authorised_client(obj["uid"])
