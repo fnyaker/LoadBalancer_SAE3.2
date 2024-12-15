@@ -2,6 +2,7 @@ import sys
 import os
 import select
 import psutil
+import config
 
 # Ajouter le répertoire parent au sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -24,6 +25,7 @@ import uuid
 
 
 class Client:
+    """This is a base class"""
     def __init__(self, serverAddress = "server", serverPort = 12346, useSSL = False, certfile = None):
         self.__serverAddress = serverAddress
         self.__serverPort = serverPort
@@ -33,6 +35,7 @@ class Client:
 
         self.__context = None
         self.__sock = None
+
 
         if self.__useSSL:
             self.__context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=self.__certfile)
@@ -73,6 +76,9 @@ class ControlClient(Client): # this is the client for the control connection, it
         self.startListener()
         self.pingtime = None
         self.__UserProcesses = [] # contains : (uid, ProcessObject)
+
+        self.__max_processes = config.max_processes
+        self.__absolute_max_processes = config.absolute_max_processes
 
         self.__clientspipe = BidirectionalQueue()
 
@@ -145,13 +151,17 @@ class ControlClient(Client): # this is the client for the control connection, it
             self.__send(json.dumps({"command": "pong"}))
 
         elif obj['command'] == 'DataSession':
-            self.__initDataSession(obj)
+            if len(self.__UserProcesses) < self.__absolute_max_processes:
+                self.__initDataSession(obj)
 
         elif obj['command'] == 'getLoad':
             self.__load()
 
         elif obj['command'] == 'getLanguages':
-            self.send(json.dumps({"command": "Languages", "languages": self.__get_languages()}).encode('utf-8'))
+            self.__send(json.dumps({"command": "Languages", "languages": self.__get_languages()}))
+
+        elif obj['command'] == "getUserCount":
+            self.__send(json.dumps({"command": "UserCount", "count": len(self.__UserProcesses), "max": self.__max_processes, "absolute_max": self.__absolute_max_processes}))
 
     def __get_languages(self):
         try :

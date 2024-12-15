@@ -30,6 +30,7 @@ class Node:
         self.__refresh_load_counter = 0
         self.__tries = 0
         self.languages = {}
+        self.usercount = {}
 
     def __send(self, data):
         self.__clientObject.send(data)
@@ -75,6 +76,8 @@ class Node:
             self.__tries = 0
         elif obj['command'] == 'Languages':
             self.languages = obj['languages']
+        elif obj['command'] == 'UserCount':
+            self.usercount = obj['usercount']
 
 
 
@@ -115,6 +118,7 @@ class Node:
             self.__eject()
 
     def prepare_data_session(self, user_uid, key):
+
         print("Asking node to prepare data session")
         self.__send(json.dumps({"command": "DataSession", "server" : self.__data_server, "user_uid": user_uid, "key": key}).encode('utf-8'))
 
@@ -132,8 +136,20 @@ class Node:
         if packages.lower() in self.languages:
             return self.languages[packages.lower()]
 
+    def user_count(self):
+        self.get_user_count()
+        tries = 0
+
+        while len(self.usercount) == 0 and tries < 10:
+            time.sleep(0.1)
+
+        return self.usercount
+
     def get_languages(self):
         self.__send(json.dumps({"command": "getLanguages"}).encode('utf-8'))
+
+    def get_user_count(self):
+        self.__send(json.dumps({"command": "getUserCount"}).encode('utf-8'))
 
     @property
     def uid(self):
@@ -170,6 +186,9 @@ class NodesBook: # stores all nodes and interact with the load balancer algorith
 
     def prepare_node_for(self, required_packages, user_uid, key):
         node = self.__Balancer.choose_node(required_packages)
+        if not node:
+            print("No node available")
+            return
         print(f"Node {node.uid} was chosen")
         node.prepare_data_session(user_uid, key)
         return node.uid
@@ -231,7 +250,8 @@ class NodeControlServer(Server):
                 if "DataSessionRequest" in message:
                     obj = json.loads(message)
                     nodeuid = self.nodesBook.prepare_node_for(obj['required_packages'], obj['uid'], obj['Key'])
-                    self.__pipe.send_to_server(json.dumps({"command": "NodePrepared", "uids": (obj['uid'], nodeuid)}))
+                    if nodeuid:
+                        self.__pipe.send_to_server(json.dumps({"command": "NodePrepared", "uids": (obj['uid'], nodeuid)}))
 
             data = self.nodesBook.relay()
             if len(data) > 0:
