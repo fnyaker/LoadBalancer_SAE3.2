@@ -1,13 +1,13 @@
-import sys
-import os
+#import sys
+#import os
 
 # Ajouter le répertoire parent au sys.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 
 import time
 import json
 from threading import Thread
-from Server.Master.InternalLibs.Server import Server
+from .Server import Server
 from cryptography.fernet import Fernet
 from multiprocessing import Process
 
@@ -28,12 +28,12 @@ class Session :
         self.__relayProcess.start()
 
     def stopRelay(self):
-        self.__relayProcess.terminate()
-        self.__relayProcess = None
+        if self.__relayProcess is not None:
+            self.__relayProcess.terminate()
+            self.__relayProcess = None
 
     def restartRelay(self):
-        if self.__relayProcess is not None:
-            self.stopRelay()
+        self.stopRelay()
         self.startRelay()
 
     def __main(self):
@@ -142,7 +142,9 @@ class Listener(Server): # this class listens
 
     def rm_authorised_client(self, uid):
         for i in self.__authorised_client:
+            print(i[0], uid)
             if i[0] == uid:
+                print("Removing authorised client")
                 self.__authorised_client.remove(i)
                 break
 
@@ -241,7 +243,7 @@ class DataServer:
                 self.__nodeListener.add_authorised_client(obj["uid"], obj["Key"])
 
             elif obj["command"] == "PayloadExecuted":
-                print("Payload executed and relay stopping")
+                print("relay stopping")
                 for i in self.__sessions:
                     print(i.client_uid, obj["uid"])
                     if i.client_uid == obj["uid"]:

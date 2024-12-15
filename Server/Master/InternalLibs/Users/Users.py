@@ -1,8 +1,18 @@
 import time
 from threading import Thread
-from Server.Master.InternalLibs.Server import Server
+try :
+    from .Queue import BidirectionalQueue
+    from .Server import Server
+    print("User Server Running packaged/prod version")
+except ImportError:
+    print("User Server Running dev version")
+    from Server.Master.InternalLibs.Server import Server
+    from Server.Master.InternalLibs.Queue import BidirectionalQueue
+
+
+
 from cryptography.fernet import Fernet
-from Server.Master.InternalLibs.Queue import BidirectionalQueue
+
 
 import uuid
 
@@ -86,7 +96,7 @@ class User:
         elif obj['command'] == 'pong':
             self.__alive_tries = 0
         elif obj['command'] == 'initDataSession':
-            self.__start_data_session(obj["RequiredPackages"])
+            self.__askfor_data_session(obj["RequiredPackages"])
         elif obj['command'] == 'EndDataSession':
             self.__pipe.send_to_server(json.dumps({"Status": "PayloadExecuted", "uid": self.__uid}))
             self.nodeuid = None
@@ -113,8 +123,10 @@ class User:
         else:
             return None
 
-    def __start_data_session(self, RequiredPackages):
+    def __askfor_data_session(self, RequiredPackages):
         self.__pipe.send_to_server(json.dumps({"DataSessionRequest": RequiredPackages, "uid": self.__uid, "Key": self.__data_session[1]}))
+
+    def start_data_session(self):
         self.__send(json.dumps({"command": "DataSession", "data": {
             "ip": self.__data_session[0][0],
             "port": self.__data_session[0][1],
@@ -126,6 +138,8 @@ class User:
         print("Telling user to end data session")
         self.__send(json.dumps({"command": "EndDataSession"}).encode('utf-8'))
         self.nodeuid = None
+
+
 
 
     def close(self):
@@ -149,6 +163,7 @@ class UserBook:  # stores all users and allow them to interact with outside
 
     def update_user_node(self, uids):
         self.__users[uids[0]][0].nodeuid = uids[1]
+        self.__users[uids[0]][0].start_data_session()
 
 
     def removeUser(self, uid):
@@ -242,6 +257,8 @@ class UserControlServer(Server):
                         useruids = self.__userBook.find_who_has_node(obj["uid"])
                         for uid in useruids:
                             self.__userBook.tell_user_to_end_data_session(uid)
+                    elif obj["command"] == "NoNodeAvailable":
+                        self.__userBook.tell_user_to_end_data_session(obj["uid"])
 
             for uid in self.__userBook.list_users():
                 data = self.__userBook.getqueufromuser(uid)

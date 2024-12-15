@@ -3,18 +3,24 @@ from threading import Thread
 
 import sys
 import os
+import uuid
+import json
 
 # Ajouter le répertoire parent au sys.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from Server.Master.InternalLibs.Server import *
-from Server.Master.InternalLibs.Queue import BidirectionalQueue
-from Server.Master.InternalLibs.Nodes import LoadBalancer
-import uuid
+try :
+    from .Queue import BidirectionalQueue
+    from . import LoadBalancer
+    from .Server import *
+    print("Node Server Running packaged/prod version")
+except ImportError:
+    print("Node Server Running dev version")
+    # sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from Server.Master.InternalLibs.Server import *
+    from Server.Master.InternalLibs.Queue import BidirectionalQueue
+    from Server.Master.InternalLibs.Nodes import LoadBalancer
 
 
-import json
-# import ssl
 
 def gen_uid():
     return str(uuid.uuid4())
@@ -77,7 +83,7 @@ class Node:
         elif obj['command'] == 'Languages':
             self.languages = obj['languages']
         elif obj['command'] == 'UserCount':
-            self.usercount = obj['usercount']
+            self.usercount = {"count" : obj['count'], "max" : obj['max'], "absolute_max" : obj['absolute_max']}
 
 
 
@@ -188,7 +194,9 @@ class NodesBook: # stores all nodes and interact with the load balancer algorith
         node = self.__Balancer.choose_node(required_packages)
         if not node:
             print("No node available")
-            return
+            return None
+        else:
+            node = node[0]
         print(f"Node {node.uid} was chosen")
         node.prepare_data_session(user_uid, key)
         return node.uid
@@ -203,7 +211,14 @@ class NodesBook: # stores all nodes and interact with the load balancer algorith
             return None
 
     def refresh_load(self, uid):
-        self.__Balancer.nodes[uid][0].get_load()
+        try :
+            self.__Balancer.nodes[uid][0].get_load()
+            self.__Balancer.nodes[uid][0].get_user_count()
+
+        except OSError:
+            pass
+        except RuntimeError:
+            pass
 
     def relay(self):
         buffer = []
@@ -225,7 +240,7 @@ class NodeControlServer(Server):
         self.__listener_port = listener_port
         self.__listener_ip = listener_ip
         self.__dataserver = (dataserver_ip, dataserver_port)
-        super().__init__(listener_port, "0.0.0.0", self.__callback, use_ssl=True, certfile=certfile, keyfile=keyfile)
+        super().__init__(listener_port, listener_ip, self.__callback, use_ssl=True, certfile=certfile, keyfile=keyfile)
         self.nodesBook = NodesBook(dataserver_ip, dataserver_port)
         self.__pipe = pipe
         self.__pipeListenerThread = Thread(target=self.__loop)
@@ -252,6 +267,8 @@ class NodeControlServer(Server):
                     nodeuid = self.nodesBook.prepare_node_for(obj['required_packages'], obj['uid'], obj['Key'])
                     if nodeuid:
                         self.__pipe.send_to_server(json.dumps({"command": "NodePrepared", "uids": (obj['uid'], nodeuid)}))
+                    else:
+                        self.__pipe.send_to_server(json.dumps({"command": "NoNodeAvailable", "uid": obj['uid']}))
 
             data = self.nodesBook.relay()
             if len(data) > 0:

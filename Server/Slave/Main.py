@@ -4,8 +4,7 @@ import select
 import psutil
 import config
 
-# Ajouter le répertoire parent au sys.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 
 import ssl
 import socket
@@ -14,9 +13,16 @@ import time
 from threading import Thread
 from cryptography.fernet import Fernet
 from multiprocessing import Process
-# use the same queue as the server
-from Server.Master.InternalLibs.Queue import BidirectionalQueue
-import runner
+
+try :
+    from libs.Queue import BidirectionalQueue
+    from libs import runner
+    print("Slave Running packaged/prod version")
+except ImportError:
+    print("Slave Running dev version")
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from Server.Master.InternalLibs.Queue import BidirectionalQueue
+    import runner
 
 
 import subprocess
@@ -69,7 +75,7 @@ class Client:
         return self.__useSSL
 
 class ControlClient(Client): # this is the client for the control connection, it must use ssl
-    def __init__(self, serverAddress = "server", serverPort = 12346, certfile = None):
+    def __init__(self, serverAddress = config.master_address, serverPort = config.master_port, certfile = None):
         super().__init__(serverAddress, serverPort, True, certfile)
         self.running = True
         self.__uid = None

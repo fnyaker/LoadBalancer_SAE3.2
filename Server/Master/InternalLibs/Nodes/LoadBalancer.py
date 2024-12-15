@@ -33,9 +33,11 @@ class Balancer:
 
         for node in nodes:
             if self.nodes[node][0].has_packages(required_packages):
-                usercnt = self.nodes[node].usercount()
-                if usercnt["count"] < usercnt["absulute_max"]:
+                usercnt = self.nodes[node][0].user_count()
+                if usercnt["count"] < usercnt["absolute_max"]:
                     possibles.append((self.nodes[node],usercnt))
+                else:
+                    print("Node", node, "is full, it has", usercnt["count"], "users", "max is", usercnt["absolute_max"])
 
         if len(possibles) == 0:
             return None

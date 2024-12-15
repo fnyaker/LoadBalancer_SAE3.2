@@ -2,17 +2,45 @@ import sys
 import os
 
 # Ajouter le répertoire parent au sys.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from InternalLibs.Users.Users import *
-from InternalLibs.Nodes.Nodes import *
-from InternalLibs.Server import *
-from InternalLibs.DataServer import *
-import socket
-import uuid
+
+try :
+    from libs.Users import *
+    from libs.Nodes import *
+    from libs.Server import *
+    from libs.DataServer import *
+    from libs.Queue import BidirectionalQueue
+    print("Master Server Running packaged/prod version")
+    import config
+    usercertfilepath = "usercertfile.pem"
+    userkeyfilepath = "userkeyfile.pem"
+
+    nodecertfilepath = "nodecertfile.pem"
+    nodekeyfilepath = "nodekeyfile.pem"
+
+
+except ImportError:
+    print("Master Server Running dev version ONLY ON UNIX")
+    certfilepath = "../../certfile.pem"
+    keyfilepath = "../../keyfile.pem"
+
+
+    usercertfilepath = certfilepath
+    userkeyfilepath = keyfilepath
+
+    nodecertfilepath = certfilepath
+    nodekeyfilepath = keyfilepath
+
+    import config
+
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from InternalLibs.Users.Users import *
+    from InternalLibs.Nodes.Nodes import *
+    # from InternalLibs.Server import *
+    from InternalLibs.DataServer import DataServer
+
+
 from time import sleep
-from InternalLibs.Queue import BidirectionalQueue
-
 from multiprocessing import Process, Queue
 
 
@@ -20,37 +48,26 @@ from multiprocessing import Process, Queue
 
 class ServerManager:
     def __init__(self):
-        self.user_server_ip = 'server'
-        self.user_server_port = 12345
-        self.user_certfile = '../../certfile.pem'
-        self.user_keyfile = '../../keyfile.pem'
-
-        self.node_server_ip = 'server'
-        self.node_server_port = 12346
-        self.node_certfile = '../../certfile.pem'
-        self.node_keyfile = '../../keyfile.pem'
-
-        self.dataServer_user_ip = 'server'
-        self.dataServer_user_port = 22345
-
-        self.dataServer_node_ip = 'server'
-        self.dataServer_node_port = 22346
 
         self.user_pipe = BidirectionalQueue()
         self.node_pipe = BidirectionalQueue()
         self.dataserv_pipe = BidirectionalQueue()
+
+        self.__users = []
+        self.__nodes = []
+        self.__data_sessions = []
         # self.loadbalancer_pipe = BidirectionalQueue()
 
     def start_user_control(self):
-        usercontrolserver = UserControlServer(self.user_server_port, self.user_server_ip, self.user_certfile, self.user_keyfile, self.user_pipe, self.dataServer_user_ip, self.dataServer_user_port)
+        usercontrolserver = UserControlServer(config.Users.listener_port, config.Users.listener_address, usercertfilepath, userkeyfilepath, self.user_pipe, config.Users.dataserver_external_address, config.Users.dataserver_external_port)
         usercontrolserver.start()
 
     def start_node_control(self):
-        nodecontrolserver = NodeControlServer(self.node_server_port, self.node_server_ip, self.node_certfile, self.node_keyfile, self.node_pipe, self.dataServer_node_ip, self.dataServer_node_port)
+        nodecontrolserver = NodeControlServer(config.Nodes.listener_port, config.Nodes.listener_address, nodecertfilepath, nodekeyfilepath, self.node_pipe, config.Nodes.dataserver_external_address, config.Nodes.dataserver_external_port)
         nodecontrolserver.start()
 
     def start_data_server(self):
-        dataserver = DataServer("0.0.0.0", self.dataServer_user_port, "0.0.0.0", self.dataServer_node_port, self.dataserv_pipe)
+        dataserver = DataServer(config.Users.dataserver_listener_address, config.Users.dataserver_listener_port, config.Nodes.dataserver_listener_address, config.Nodes.dataserver_listener_port, self.dataserv_pipe)
         dataserver.start()
 
 
@@ -85,14 +102,14 @@ class ServerManager:
                 print("Node prepared")
                 self.user_pipe.send_to_client(json.dumps({"command": "NodePrepared", "uids": obj["uids"]}))
                 self.dataserv_pipe.send_to_client(json.dumps({"command": "NodePrepared", "uids": obj["uids"]}))
+            if obj["command"] == "NoNodeAvailable":
+                print("No node available")
+                self.user_pipe.send_to_client(json.dumps({"command": "NoNodeAvailable", "uid": obj["uid"]}))
+                self.dataserv_pipe.send_to_client(json.dumps({"command": "PayloadExecuted", "uid": obj["uid"]}))
+
 
 
     def main(self):
-        workingdir = os.getcwd()
-        print(workingdir)
-        print(self.user_certfile)
-        print(self.node_keyfile)
-
         usercontrolprocess = Process(target=self.start_user_control)
         usercontrolprocess.start()
 
@@ -115,10 +132,20 @@ class ServerManager:
                 if self.dataserv_pipe.poll_from_client():
                     message = self.dataserv_pipe.recv_from_client()
                     print(f"Message from DataServer: {message}")
-                sleep(0.01)
+                sleep(0.005)
         except KeyboardInterrupt:
-            usercontrolprocess.terminate()
-            nodecontrolProcess.terminate()
+            try :
+                usercontrolprocess.terminate()
+            except:
+                pass
+            try:
+                nodecontrolProcess.terminate()
+            except:
+                pass
+            try:
+                dataservprocess.terminate()
+            except:
+                pass
 
 if __name__ == "__main__":
     manager = ServerManager()

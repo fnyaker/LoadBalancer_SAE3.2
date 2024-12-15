@@ -1,5 +1,5 @@
-from LocalLibs import Backend
-from LocalLibs.Backend import ControlClient
+from libs import Backend
+from libs.Backend import ControlClient
 import time
 
 examplecode = """

@@ -2,7 +2,7 @@ import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QTextEdit, QVBoxLayout, QWidget, QLineEdit, QLabel, \
     QHBoxLayout, QFileDialog
 from PyQt6.QtCore import QTimer
-from LocalLibs.Backend import ControlClient
+from libs.Backend import ControlClient
 import time
 
 
@@ -62,7 +62,8 @@ class MainWindow(QMainWindow):
             self.backend.close()
         address = self.server_address_input.text()
         port = int(self.server_port_input.text())
-        self.backend = ControlClient(serverAddress=address, serverPort=port, certfile="../certfile.pem")
+
+        self.backend = ControlClient(serverAddress=address, serverPort=port, certfile="usercertfile.pem")
         self.backend.requestUid()
         time.sleep(0.1)
         self.output_display.append(f"Connecté au serveur avec UID: {self.backend.uid}")
