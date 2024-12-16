@@ -7,8 +7,8 @@ includes:
 """
 
 from subprocess import Popen, PIPE
-import shlex
-import fcntl
+# import shlex
+# import fcntl
 import os
 
 
@@ -20,16 +20,16 @@ def run(command):
             break
         yield line.decode('utf-8')
 
-def run_command(command):
-    process = Popen(shlex.split(command), stdout=PIPE)
-    while True:
-        output = process.stdout.readline().rstrip().decode('utf-8')
-        if output == '' and process.poll() is not None:
-            break
-        if output:
-            print(output.strip())
-    rc = process.poll()
-    return rc
+#def run_command(command):
+#    process = Popen(shlex.split(command), stdout=PIPE)
+#    while True:
+#        output = process.stdout.readline().rstrip().decode('utf-8')
+#        if output == '' and process.poll() is not None:
+#            break
+#        if output:
+#            print(output.strip())
+#    rc = process.poll()
+#    return rc
 
 
 

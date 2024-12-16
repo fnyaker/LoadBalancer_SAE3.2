@@ -1,7 +1,7 @@
-import sys
-import os
+# import sys
+# import os
 
-from click import command
+# from click import command
 
 # Ajouter le répertoire parent au sys.path
 # sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))

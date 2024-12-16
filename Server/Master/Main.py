@@ -41,7 +41,9 @@ except ImportError:
 
 
 from time import sleep
-from multiprocessing import Process, Queue
+import multiprocessing
+
+multiprocessing.set_start_method('fork', True)
 
 
 
@@ -110,13 +112,13 @@ class ServerManager:
 
 
     def main(self):
-        usercontrolprocess = Process(target=self.start_user_control)
+        usercontrolprocess = multiprocessing.Process(target=self.start_user_control)
         usercontrolprocess.start()
 
-        nodecontrolProcess = Process(target=self.start_node_control)
+        nodecontrolProcess = multiprocessing.Process(target=self.start_node_control)
         nodecontrolProcess.start()
 
-        dataservprocess = Process(target=self.start_data_server)
+        dataservprocess = multiprocessing.Process(target=self.start_data_server)
         dataservprocess.start()
 
         try:

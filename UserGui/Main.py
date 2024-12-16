@@ -10,7 +10,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Nyakloud Runner")
+        self.setWindowTitle("Runker")
 
         self.server_address_input = QLineEdit()
         self.server_address_input.setText("localhost")

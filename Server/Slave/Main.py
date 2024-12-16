@@ -12,7 +12,7 @@ import json
 import time
 from threading import Thread
 from cryptography.fernet import Fernet
-from multiprocessing import Process
+import multiprocessing
 
 try :
     from libs.Queue import BidirectionalQueue
@@ -28,6 +28,8 @@ except ImportError:
 import subprocess
 import platform
 import uuid
+
+multiprocessing.set_start_method('fork')
 
 
 class Client:
@@ -77,6 +79,7 @@ class Client:
 class ControlClient(Client): # this is the client for the control connection, it must use ssl
     def __init__(self, serverAddress = config.master_address, serverPort = config.master_port, certfile = None):
         super().__init__(serverAddress, serverPort, True, certfile)
+        self.__clientspipe = BidirectionalQueue()
         self.running = True
         self.__uid = None
         self.startListener()
@@ -85,8 +88,6 @@ class ControlClient(Client): # this is the client for the control connection, it
 
         self.__max_processes = config.max_processes
         self.__absolute_max_processes = config.absolute_max_processes
-
-        self.__clientspipe = BidirectionalQueue()
 
     def __send (self, data : str):
         super().send(data.encode('utf-8'))
@@ -123,7 +124,10 @@ class ControlClient(Client): # this is the client for the control connection, it
     def loop(self):
         while self.running:
             for i in self.__UserProcesses:
-                i[1].join(0.01)
+                try :
+                    i[1].join(0.01)
+                except AssertionError:
+                    pass
 
                 if not i[1].is_alive():
                     print("User process finished")
@@ -214,8 +218,9 @@ class ControlClient(Client): # this is the client for the control connection, it
         self.__send(json.dumps({"command": "Load", "load": {"cpu": cpu, "mem": mem}}))
 
     def __initDataSession(self, data):
-        UserProcess = Process(target=self.datasession, args=(data['user_uid'], data['key'], self.__clientspipe))
+        UserProcess = multiprocessing.Process(target=self.datasession, args=(data['user_uid'], data['key'], self.__clientspipe))
         self.__UserProcesses.append((data['user_uid'], UserProcess))
+        # UserProcess.set_start_method("fork")
         UserProcess.start()
         print("User process started")
 
