@@ -14,7 +14,7 @@
 
     - `g++` for c++
 
-    - `javac` for running java code
+    - `javac` for running java code (`openjdk-17-jdk-headless` on debian 12)
 
 - for the master server :
 

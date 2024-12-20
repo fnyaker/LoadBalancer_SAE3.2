@@ -45,6 +45,9 @@ class Balancer:
             for node in possibles:
                 if node[1]["count"] < node[1]["max"]:
                     return node[0]
+
+            # at this point, we choose the one with the lowest load
+            return possibles[0][0]
         # return nodes[0] # TO BE CHANGED
 
 

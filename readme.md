@@ -10,7 +10,7 @@ It allow multiple users to run code codes on multiples nodes, there is a central
 
 Server parts (master and nodes) are only tested on Linux based systems (fedora 41 and debian 12), they can (with some luck) run on Mac Os but, they will NOT work on windows based systems because windows is incapable of forking a process ([https://en.wikipedia.org/wiki/Fork%E2%80%93exec](<https://en.wikipedia.org/wiki/Fork%E2%80%93exec>)), or at least, it is very "sketchy".  
   
-The user client gui SHOULD run on "every" system that can run base python libs and pyqt6
+The user client gui SHOULD run on "every" system that can run base python libs and pyqt6, tested on debian, fedora, windows 11.
 
 ## Installation/Usage
 

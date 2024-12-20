@@ -21,6 +21,8 @@ class Session :
         self.__user_uid =  useruid
         self.__node = None
         self.__relayProcess = None
+        self.relaying = False
+        self.dead = False
 
 
     def startRelay(self):
@@ -39,12 +41,14 @@ class Session :
     def __main(self):
         usernodeThread = Thread(target=self.__relay_usernode)
         nodetouserThread = Thread(target=self.__relay_nodetouser)
+        self.relaying = True
         usernodeThread.start()
         nodetouserThread.start()
         usernodeThread.join()
         nodetouserThread.join()
 
         print("Relay process ended (should never happen)")
+
 
     def useNode(self, node):
         print("Node used")
@@ -54,8 +58,12 @@ class Session :
 
 
     def __relay_usernode(self): # should never be called outside of the dedicated relay process
-        while True:
-            data = self.__clientObject.fast_get_last_message()
+        while self.relaying:
+            try :
+                data = self.__clientObject.fast_get_last_message()
+            except ConnectionResetError:
+                print("User disconnected")
+                break
             if data:
                 #print("USER -> NODE")
                 try :
@@ -67,9 +75,16 @@ class Session :
                     print("Node disconnected")
                     break
 
+        self.relaying = False
+        self.dead = True
+
     def __relay_nodetouser(self): # should never be called outside of the dedicated relay process
-        while True:
-            data = self.__node.fast_get_last_message()
+        while self.relaying:
+            try :
+                data = self.__node.fast_get_last_message()
+            except ConnectionResetError:
+                print("Node disconnected")
+                break
             if data:
                 #print("NODE -> USER")
                 try :
@@ -80,6 +95,8 @@ class Session :
                 except ConnectionResetError:
                     print("User disconnected")
                     break
+
+        self.relaying = False
 
 
     @property
@@ -204,7 +221,7 @@ class DataServer:
     def __new_node(self, clientObject, uid, tries = 0):
         # we check if a session started by the user with the uid that is in the message is waiting
         for i in self.__sessions:
-            if i.client_uid == uid:
+            if i.client_uid == uid and not i.dead:
                 i.useNode(clientObject)
                 break
         else:
@@ -224,6 +241,7 @@ class DataServer:
     def __main(self):
         while self.__running:
             self.__checkformsg()
+            self.cleanup()
             time.sleep(0.01)
 
     def __checkformsg(self):
