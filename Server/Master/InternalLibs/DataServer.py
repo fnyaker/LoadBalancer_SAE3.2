@@ -241,7 +241,7 @@ class DataServer:
     def __main(self):
         while self.__running:
             self.__checkformsg()
-            self.cleanup()
+            # self.cleanup()
             time.sleep(0.01)
 
     def __checkformsg(self):
