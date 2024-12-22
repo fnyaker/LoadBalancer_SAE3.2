@@ -131,7 +131,7 @@ class Listener(Server): # this class listens
                 for i in self.__authorised_client:
                     try :
                         decrypted = self.__decrypt(data, i[1])
-                        print("Decrypted:", decrypted)
+                        # print("Decrypted:", decrypted)
                         if decrypted == i[0]:
                             clientObject.send(self.__encrypt(json.dumps({"command" : "Auth_pass"}), i[1]))
                             auth_pass = True
@@ -232,7 +232,7 @@ class DataServer:
                 time.sleep(0.02)
 
             else:
-                print("Node unbale to connect or user id too slow")
+                print("Node unbale to connect or user is too slow")
                 clientObject.close()
 
 
@@ -249,7 +249,7 @@ class DataServer:
         if self.__pipe.poll_from_server():
             msg = self.__pipe.recv_from_server()
             if msg:
-                print("DataServer got", msg)
+                # print("DataServer got", msg)
                 self.__handle_messages(msg)
 
 

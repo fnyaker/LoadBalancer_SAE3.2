@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
         self.backend = ControlClient(serverAddress=address, serverPort=port, certfile="usercertfile.pem")
         self.backend.requestUid()
         time.sleep(0.1)
-        self.output_display.append(f"Connecté au serveur avec UID: {self.backend.uid}")
+        # self.output_display.append(f"Connecté au serveur avec UID: {self.backend.uid}")
         self.run_button.setEnabled(True)
         self.timer.start(15)
 

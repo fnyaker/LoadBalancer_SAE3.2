@@ -102,6 +102,7 @@ class ControlClient(Client): # this is the client for the control connection, it
         obj = json.loads(data)
         if obj['command'] == 'uidIs':
             self.__uid = obj['uid']
+            self.print("UID reçu : " + self.__uid)
         elif obj['command'] == 'OUT':
             self.print("DECONNEXION DEMANDEE PAR LE SERVEUR")
             self.closedataclient()
@@ -295,7 +296,7 @@ class DataClient(Client): # this is the client for the node connection, it must 
             self.print("Erreur de décodage des données du noeud")
             return
         if obj['command'] == 'STDOUT':
-            self.STDOUT(obj['data'])
+            self.STDOUT(">>"+str(obj['data']))
         elif obj['command'] == 'STDERR':
             self.STDERR(obj['data'])
         elif obj['command'] == 'Ready':
@@ -304,7 +305,7 @@ class DataClient(Client): # this is the client for the node connection, it must 
             self.sendPayload()
 
         elif obj['command'] == 'ping':
-            print("I live !")
+            # print("I live !")
             self.__send(json.dumps({"command": "pong"}).encode('utf-8'))
 
         elif obj['command'] == 'pong':
@@ -317,10 +318,10 @@ class DataClient(Client): # this is the client for the node connection, it must 
             self.updateStatus(obj['data'])
 
         elif obj['command'] == 'OUT':
-            print("Node sent OUT command")
+            # print("Node sent OUT command")
             self.running = False
         elif obj['command'] == 'Auth_pass':
-            print("Authenticated, woaw")
+            # print("Authenticated, woaw")
             self.__auth_passed = True
         elif obj['command'] == 'PayloadExecuted':
             self.print("Payload executed")

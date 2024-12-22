@@ -231,10 +231,10 @@ class UserControlServer(Server):
     def main(self):
         while self.__userBook.running:
             if self.__pipe.poll_from_server():
-                print("User control server Got message from server")
+                # print("User control server Got message from server")
                 message = self.__pipe.recv_from_server()
                 obj = json.loads(message)
-                print("User control server got", obj)
+                # print("User control server got", obj)
                 #if "PayloadExecuted" in obj:
                 #    self.__userBook.tell_user_to_end_data_session(obj["uid"])
                 #elif "NodePrepared" in obj:

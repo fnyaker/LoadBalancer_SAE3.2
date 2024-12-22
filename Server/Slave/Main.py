@@ -95,9 +95,9 @@ class ControlClient(Client): # this is the client for the control connection, it
     def __listener(self):
         while self.running:
             try :
-                print("Reading ...")
+                # print("Reading ...")
                 data = self.receive(2048)
-                print("Got data ? ", data)
+                # print("Got data ? ", data)
             except ssl.SSLWantReadError:
                 print("SSLWantReadError")
                 continue
@@ -145,7 +145,7 @@ class ControlClient(Client): # this is the client for the control connection, it
         print("Listener started")
 
     def __handleMessages(self, data : str):
-        print("Got message from server")
+        # print("Got message from server")
         obj = json.loads(data)
         if obj['command'] == 'uidIs':
             self.__uid = obj['uid']
