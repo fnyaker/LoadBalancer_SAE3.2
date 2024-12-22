@@ -96,7 +96,7 @@ class ControlClient(Client): # this is the client for the control connection, it
         while self.running:
             try :
                 # print("Reading ...")
-                data = self.receive(2048)
+                data = self.receive(4096)
                 # print("Got data ? ", data)
             except ssl.SSLWantReadError:
                 print("SSLWantReadError")
@@ -105,10 +105,10 @@ class ControlClient(Client): # this is the client for the control connection, it
                 self.__handleMessages(data.decode('utf-8'))
             else:
                 pass
-            print("Trying to get data from clients pipe")
+            #print("Trying to get data from clients pipe")
             while self.__clientspipe.poll_from_client():
                 data = self.__clientspipe.recv_from_client()
-                print("Got data from client pipe", data)
+                # print("Got data from client pipe", data)
                 try:
                     data = json.loads(data)
                 except json.JSONDecodeError:
@@ -119,7 +119,7 @@ class ControlClient(Client): # this is the client for the control connection, it
                     print("Payload executed for user", data['uid'])
                     self.__send(json.dumps({"command": "PayloadExecuted", "uid": data['uid']}))
 
-            print("Checking for finished processes")
+            #print("Checking for finished processes")
 
     def loop(self):
         while self.running:
@@ -130,7 +130,7 @@ class ControlClient(Client): # this is the client for the control connection, it
                     pass
 
                 if not i[1].is_alive():
-                    print("User process finished")
+                    # print("User process finished")
 
                     self.__send(json.dumps({"command": "PayloadExecuted", "uid": i[0]}))
                     self.__UserProcesses.remove(i)
@@ -253,12 +253,13 @@ class ControlClient(Client): # this is the client for the control connection, it
 
 
 class UserEnv(Client):
+    """This class is the environment for handling user requests directly"""
     def __init__(self, user_uid,key,pipe , serverAddress = "server", serverPort = 22346):
         super().__init__(serverAddress, serverPort, useSSL=False)
         self.running = True
         self.__uid = user_uid
         self.__key = key
-        print("Key:", key)
+        # print("Key:", key)
         self.__cypher = Fernet(key.encode('utf-8'))
         self.__payload = None
 
@@ -393,6 +394,7 @@ class UserEnv(Client):
         return self.__auth_passed
 
 class CompileRunner:
+    """This class is used to compile and run code"""
     def __init__(self, code : str, stdout_callback, stderr_callback):
         self.__code = code
 

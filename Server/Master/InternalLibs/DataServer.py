@@ -47,7 +47,7 @@ class Session :
         usernodeThread.join()
         nodetouserThread.join()
 
-        print("Relay process ended (should never happen)")
+        # print("Relay process ended (should never happen)")
 
 
     def useNode(self, node):

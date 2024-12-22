@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
     def run_code(self):
         self.run_button.setEnabled(False)
         code = self.code_input.toPlainText()
-        print("Running code:", code)
+        # print("Running code:", code)
         self.backend.runCode(code)
 
     def update_output_display(self):

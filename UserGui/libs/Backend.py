@@ -85,7 +85,7 @@ class ControlClient(Client): # this is the client for the control connection, it
                 self.__handleMessages(data.decode('utf-8'))
             else:
                 pass
-            print("usefull")
+            # print("usefull")
             #if self.__dataClient:
             #    if not self.__dataClient.running:
             #        self.print("Client de données se ferme")
@@ -98,7 +98,7 @@ class ControlClient(Client): # this is the client for the control connection, it
         self.__listenerThread.start()
 
     def __handleMessages(self, data : str):
-        print(data)
+        # print(data)
         obj = json.loads(data)
         if obj['command'] == 'uidIs':
             self.__uid = obj['uid']
@@ -141,12 +141,12 @@ class ControlClient(Client): # this is the client for the control connection, it
     def closedataclient(self):
         if self.__dataclientRunning:
             self.__dataclientRunning = False
-            self.print("Client de données se ferme")
+            # self.print("Client de données se ferme")
             try :
                 self.__dataClient.running = False
-                print(1)
+                #print(1)
                 self.__dataClient.end()
-                print(2)
+                #print(2)
             except:
                 pass
 
@@ -157,7 +157,7 @@ class ControlClient(Client): # this is the client for the control connection, it
 
 
     def requestUid(self):
-        print("Requesting uid from server")
+        # print("Requesting uid from server")
         self.__send(json.dumps({"command": "greet", "data": "Hello"}))
 
     def requestNode(self, RequiredPackages):
@@ -258,13 +258,13 @@ class DataClient(Client): # this is the client for the node connection, it must 
                 self.running = False
 
         # auto close the connection
-        print("Closing connection")
+        # print("Closing connection")
         #self.kill()
 
 
     def end(self):
         self.close()
-        print("joining thread")
+        # print("joining thread")
         del super().sock
         del self.__listenerThread
         del self.__cypher
